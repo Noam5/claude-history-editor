@@ -10,6 +10,11 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.getByRole("button", { name: /unique lighthouse/i }).click();
 
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "f119e2d5-600e-42c5-a63f-7b8e05bdc59e"
+  );
+  await expect(page.locator(".session-preview")).toHaveText("Where is the lighthouse sentence?");
+
   const message = page.locator("#message-browser-assistant");
   await expect(message).toContainText("The unique lighthouse sentence is here.");
   await expect(message).toContainText("msg-browser-answer");
@@ -19,7 +24,9 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
   await expect(messageId).toHaveText(/^msg_01[A-Za-z0-9]{22}$/);
   const randomizedMessageId = await messageId.textContent();
   const randomizedRecords = (await fsp.readFile(
-    path.resolve(".e2e-data/history/C--workspace-test/browser-session.jsonl"),
+    path.resolve(
+      ".e2e-data/history/C--workspace-test/f119e2d5-600e-42c5-a63f-7b8e05bdc59e.jsonl"
+    ),
     "utf8"
   ))
     .trim()
@@ -44,7 +51,9 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
 
   await message.getByRole("button", { name: "Edit" }).click();
   await fsp.appendFile(
-    path.resolve(".e2e-data/history/C--workspace-test/browser-session.jsonl"),
+    path.resolve(
+      ".e2e-data/history/C--workspace-test/f119e2d5-600e-42c5-a63f-7b8e05bdc59e.jsonl"
+    ),
     `${JSON.stringify({ type: "system", content: "external append" })}\n`
   );
   await message.getByLabel("Edit assistant message").fill("This stale edit must not save.");

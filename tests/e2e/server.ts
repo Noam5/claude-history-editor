@@ -6,7 +6,8 @@ const root = path.resolve(".e2e-data");
 const historyRoot = path.join(root, "history");
 const dataRoot = path.join(root, "data");
 const project = path.join(historyRoot, "C--workspace-test");
-const session = path.join(project, "browser-session.jsonl");
+const sessionId = "f119e2d5-600e-42c5-a63f-7b8e05bdc59e";
+const session = path.join(project, `${sessionId}.jsonl`);
 
 await fsp.rm(root, { recursive: true, force: true });
 await fsp.mkdir(project, { recursive: true });
@@ -59,7 +60,7 @@ await fsp.writeFile(
     JSON.stringify({
       type: "last-prompt",
       leafUuid: "browser-follow-up-answer",
-      sessionId: "browser-session"
+      sessionId
     })
   ].join("\n") + "\n"
 );

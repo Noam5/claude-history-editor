@@ -33,6 +33,10 @@ function displayProject(project: string): string {
   return project.replace(/--/g, ":\\").replace(/-/g, " ");
 }
 
+function sessionIdFromPath(sessionPath?: string): string | undefined {
+  return sessionPath?.split("/").at(-1)?.replace(/\.jsonl$/i, "");
+}
+
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -53,6 +57,7 @@ function App() {
     () => sessions.find((session) => session.path === selectedPath),
     [sessions, selectedPath]
   );
+  const selectedSessionId = selectedSession?.sessionId ?? sessionIdFromPath(selectedPath);
 
   async function loadLibrary(project?: string) {
     setError(undefined);
@@ -368,7 +373,10 @@ function App() {
             <header className="session-header">
               <div>
                 <span className="eyebrow">{displayProject(selectedSession?.project ?? "")}</span>
-                <h1>{selectedSession?.preview || selectedSession?.sessionId || "Conversation"}</h1>
+                <h1 className="session-id-title">{selectedSessionId || "Conversation"}</h1>
+                {selectedSession?.preview && (
+                  <p className="session-preview">{selectedSession.preview}</p>
+                )}
                 <p>
                   {selectedSession?.messageCount ?? "—"} editable text blocks ·{" "}
                   {formatBytes(selectedSession?.size ?? 0)}

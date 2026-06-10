@@ -80,6 +80,11 @@ button { cursor: pointer; }
 .header-actions { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
 .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .session-header h1 { max-width: 760px; margin: 8px 0 5px; font-size: 26px; letter-spacing: -.03em; }
+.session-header .session-id-title {
+  overflow-wrap: anywhere; color: #f2f5eb; font-family: "DM Mono", monospace; font-size: 24px;
+  letter-spacing: -.04em;
+}
+.session-header .session-preview { margin-bottom: 5px; color: #d7dacd; font-size: 14px; }
 .session-header p { margin: 0; color: var(--muted); font-size: 12px; }
 .secondary-button, .page-controls button {
   color: #d7dacd; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px;
