@@ -51,6 +51,15 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify(body)
     }),
+  randomizeMessageId: (body: {
+    sessionPath: string;
+    messageId: string;
+    fingerprint: string;
+  }) =>
+    request<{ newMessageId: string; fingerprint: string; updatedRecords: number }>(
+      "/api/session/message/randomize-id",
+      { method: "POST", body: JSON.stringify(body) }
+    ),
   randomizeId: (body: { sessionPath: string; fingerprint: string }) =>
     request<{ newSessionId: string; newPath: string; fingerprint: string }>(
       "/api/session/randomize-id",

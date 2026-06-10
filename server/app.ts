@@ -9,6 +9,8 @@ import {
   EditConflictError,
   editMessageText,
   fileFingerprint,
+  generateMessageId,
+  randomizeMessageId,
   randomizeSessionId
 } from "./editor.js";
 import { HistoryIndex } from "./indexer.js";
@@ -130,6 +132,27 @@ export async function buildApp(options: BuildOptions = {}): Promise<FastifyInsta
       fingerprint: result.fingerprint,
       deletedRecords: result.deletedRecords
     };
+  });
+
+  app.post<{
+    Body: { sessionPath?: string; messageId?: string; fingerprint?: string };
+  }>("/api/session/message/randomize-id", async (request, reply) => {
+    const body = request.body ?? {};
+    if (
+      typeof body.sessionPath !== "string" ||
+      typeof body.messageId !== "string" ||
+      typeof body.fingerprint !== "string"
+    ) {
+      return reply.code(400).send({ error: "The message id randomize request is incomplete." });
+    }
+    const fullPath = await resolveSessionPath(config.historyRoot, body.sessionPath);
+    const result = await randomizeMessageId(fullPath, path.join(config.dataRoot, "backups"), {
+      oldMessageId: body.messageId,
+      newMessageId: generateMessageId(),
+      fingerprint: body.fingerprint
+    });
+    await index.refreshFile(fullPath, true);
+    return result;
   });
 
   app.post<{

@@ -7,6 +7,8 @@ import {
   EditConflictError,
   editMessageText,
   fileFingerprint,
+  generateMessageId,
+  randomizeMessageId,
   randomizeSessionId
 } from "./editor.js";
 
@@ -250,6 +252,114 @@ describe("safe message editing", () => {
         fingerprint
       })
     ).rejects.toBeInstanceOf(EditConflictError);
+    expect(await fsp.readFile(session, "utf8")).toBe(before);
+  });
+});
+
+describe("randomizing a message id", () => {
+  let root: string;
+  let session: string;
+  let backups: string;
+  const oldMessageId = "msg_01AAAAAAAAAAAAAAAAAAAAAA";
+  const newMessageId = "msg_01BBBBBBBBBBBBBBBBBBBBBB";
+
+  function fixtureLines(): string {
+    return [
+      JSON.stringify({ type: "system", note: `Leave embedded ${oldMessageId} text unchanged.` }),
+      JSON.stringify({
+        type: "assistant",
+        uuid: "thinking",
+        message: {
+          id: oldMessageId,
+          role: "assistant",
+          content: [{ type: "thinking", thinking: "private" }]
+        }
+      }),
+      JSON.stringify({
+        type: "assistant",
+        uuid: "text",
+        parentUuid: "thinking",
+        message: {
+          id: oldMessageId,
+          role: "assistant",
+          content: [{ type: "text", text: "visible" }]
+        }
+      }),
+      JSON.stringify({
+        type: "assistant",
+        uuid: "other",
+        message: {
+          id: "msg_01CCCCCCCCCCCCCCCCCCCCCC",
+          role: "assistant",
+          content: [{ type: "text", text: "other" }]
+        }
+      })
+    ].join("\n") + "\n";
+  }
+
+  beforeEach(async () => {
+    root = await fsp.mkdtemp(path.join(os.tmpdir(), "randomize-message-id-"));
+    session = path.join(root, "session.jsonl");
+    backups = path.join(root, "backups");
+    await fsp.writeFile(session, fixtureLines());
+  });
+
+  afterEach(async () => {
+    await fsp.rm(root, { recursive: true, force: true });
+  });
+
+  it("generates canonical-looking random message IDs", () => {
+    const generated = Array.from({ length: 20 }, () => generateMessageId());
+    expect(generated.every((id) => /^msg_01[A-Za-z0-9]{22}$/.test(id))).toBe(true);
+    expect(new Set(generated).size).toBe(generated.length);
+  });
+
+  it("updates every JSON record sharing the selected message id and creates a backup", async () => {
+    const result = await randomizeMessageId(session, backups, {
+      oldMessageId,
+      newMessageId,
+      fingerprint: await fileFingerprint(session)
+    });
+    const records = (await fsp.readFile(session, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+    expect(result.newMessageId).toBe(newMessageId);
+    expect(result.updatedRecords).toBe(2);
+    expect(records[0].note).toContain(oldMessageId);
+    expect(records[1].message.id).toBe(newMessageId);
+    expect(records[2].message.id).toBe(newMessageId);
+    expect(records[3].message.id).toBe("msg_01CCCCCCCCCCCCCCCCCCCCCC");
+
+    const [backupDirectory] = await fsp.readdir(backups);
+    expect(await fsp.readdir(path.join(backups, backupDirectory))).toHaveLength(1);
+  });
+
+  it("rejects a stale fingerprint without changing the source", async () => {
+    const fingerprint = await fileFingerprint(session);
+    await fsp.appendFile(session, `${JSON.stringify({ type: "system", content: "new" })}\n`);
+    const before = await fsp.readFile(session, "utf8");
+
+    await expect(
+      randomizeMessageId(session, backups, {
+        oldMessageId,
+        newMessageId,
+        fingerprint
+      })
+    ).rejects.toBeInstanceOf(EditConflictError);
+    expect(await fsp.readFile(session, "utf8")).toBe(before);
+  });
+
+  it("refuses to collide with another message id", async () => {
+    const before = await fsp.readFile(session, "utf8");
+    await expect(
+      randomizeMessageId(session, backups, {
+        oldMessageId,
+        newMessageId: "msg_01CCCCCCCCCCCCCCCCCCCCCC",
+        fingerprint: await fileFingerprint(session)
+      })
+    ).rejects.toThrow(/already exists/);
     expect(await fsp.readFile(session, "utf8")).toBe(before);
   });
 });

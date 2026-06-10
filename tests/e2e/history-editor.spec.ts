@@ -12,6 +12,23 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
 
   const message = page.locator("#message-browser-assistant");
   await expect(message).toContainText("The unique lighthouse sentence is here.");
+  await expect(message).toContainText("msg-browser-answer");
+  page.once("dialog", (dialog) => dialog.accept());
+  await message.getByRole("button", { name: "Randomize", exact: true }).click();
+  const messageId = message.locator(".message-id code");
+  await expect(messageId).toHaveText(/^msg_01[A-Za-z0-9]{22}$/);
+  const randomizedMessageId = await messageId.textContent();
+  const randomizedRecords = (await fsp.readFile(
+    path.resolve(".e2e-data/history/C--workspace-test/browser-session.jsonl"),
+    "utf8"
+  ))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  expect(
+    randomizedRecords.find((record) => record.uuid === "browser-assistant").message.id
+  ).toBe(randomizedMessageId);
+
   await message.getByRole("button", { name: "Edit" }).click();
   const editor = message.getByLabel("Edit assistant message");
   await editor.fill("The edited lighthouse sentence is here.");
@@ -23,6 +40,7 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
   await message.getByRole("button", { name: "Save message" }).click();
   await expect(message).toContainText("The edited lighthouse sentence is here.");
   await expect(page.getByText(/compressed backup was created/i)).toBeVisible();
+  await page.locator(".toast.success button").click();
 
   await message.getByRole("button", { name: "Edit" }).click();
   await fsp.appendFile(

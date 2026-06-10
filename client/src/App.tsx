@@ -195,6 +195,29 @@ function App() {
     }
   }
 
+  async function randomizeMessageId(record: ConversationRecord) {
+    if (!selectedPath || !record.messageId || !page) return;
+    const oldMessageId = record.messageId;
+    const result = await api.randomizeMessageId({
+      sessionPath: selectedPath,
+      messageId: oldMessageId,
+      fingerprint: page.fingerprint
+    });
+    setPage({
+      ...page,
+      fingerprint: result.fingerprint,
+      records: page.records.map((candidate) =>
+        candidate.messageId === oldMessageId
+          ? { ...candidate, messageId: result.newMessageId }
+          : candidate
+      )
+    });
+    setNotice(
+      `Message id changed to ${result.newMessageId} in ${result.updatedRecords} ${result.updatedRecords === 1 ? "record" : "records"}. A compressed backup was created.`
+    );
+    await loadLibrary(selectedProject);
+  }
+
   async function randomizeId() {
     if (!selectedPath || !page) return;
     const confirmed = window.confirm(
@@ -385,6 +408,7 @@ function App() {
                   record={record}
                   onSave={saveBlock}
                   onDelete={deleteMessage}
+                  onRandomizeMessageId={randomizeMessageId}
                 />
               ))}
             </section>
@@ -414,16 +438,20 @@ function App() {
 function MessageCard({
   record,
   onSave,
-  onDelete
+  onDelete,
+  onRandomizeMessageId
 }: {
   record: ConversationRecord;
   onSave: (record: ConversationRecord, block: TextBlock, newText: string) => Promise<void>;
   onDelete: (record: ConversationRecord) => Promise<void>;
+  onRandomizeMessageId: (record: ConversationRecord) => Promise<void>;
 }) {
   const isMeta = record.editable.length === 0;
   const canDelete = Boolean(record.uuid && (record.role === "user" || record.role === "assistant"));
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>();
+  const [randomizingMessageId, setRandomizingMessageId] = useState(false);
+  const [messageIdError, setMessageIdError] = useState<string>();
 
   async function remove() {
     const confirmed = window.confirm(
@@ -438,6 +466,22 @@ function MessageCard({
       setDeleteError((caught as Error).message);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function randomizeId() {
+    const confirmed = window.confirm(
+      `Replace ${record.messageId} with a new random message.id?\n\nEvery JSON record that shares this message.id will be updated. This cannot be undone from the app, but a compressed backup will be created.`
+    );
+    if (!confirmed) return;
+    setRandomizingMessageId(true);
+    setMessageIdError(undefined);
+    try {
+      await onRandomizeMessageId(record);
+    } catch (caught) {
+      setMessageIdError((caught as Error).message);
+    } finally {
+      setRandomizingMessageId(false);
     }
   }
 
@@ -470,6 +514,20 @@ function MessageCard({
         </div>
       </header>
       {deleteError && <p className="inline-error">{deleteError}</p>}
+      {messageIdError && <p className="inline-error">{messageIdError}</p>}
+      {record.messageId && (
+        <div className="message-id" title={record.messageId}>
+          <span>message.id</span>
+          <code>{record.messageId}</code>
+          <button
+            className="message-id-button"
+            onClick={() => void randomizeId()}
+            disabled={randomizingMessageId}
+          >
+            {randomizingMessageId ? "Randomizing..." : "Randomize"}
+          </button>
+        </div>
+      )}
       {record.editable.map((block) => (
         <EditableBlock key={block.path} record={record} block={block} onSave={onSave} />
       ))}

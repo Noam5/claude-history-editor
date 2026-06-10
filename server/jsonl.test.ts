@@ -7,7 +7,8 @@ import {
   extractReadOnlyBlocks,
   parseJsonLine,
   readJsonlPage,
-  setTextAtPath
+  setTextAtPath,
+  toConversationRecord
 } from "./jsonl.js";
 
 describe("Claude JSONL parsing", () => {
@@ -39,6 +40,19 @@ describe("Claude JSONL parsing", () => {
       "thinking",
       "tool_use"
     ]);
+  });
+
+  it("exposes nested assistant message IDs as read-only record metadata", () => {
+    const record = toConversationRecord(
+      {
+        type: "assistant",
+        uuid: "local-uuid",
+        message: { id: "msg_01Example", role: "assistant", content: "hello" }
+      },
+      12
+    );
+
+    expect(record.messageId).toBe("msg_01Example");
   });
 
   it("does not edit records without UUIDs or unsupported roles", () => {

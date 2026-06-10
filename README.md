@@ -1,6 +1,6 @@
 # Claude History Editor V2
 
-A localhost-only browser for searching, editing, and deleting user/assistant messages in Claude Code JSONL history.
+A localhost-only browser for searching, editing, deleting, and randomizing message IDs in Claude Code JSONL history.
 
 Deleting a message uses Claude Code's parent-linked conversation graph. It removes the selected
 logical message and every dependent descendant. Assistant records that share one Anthropic message
@@ -30,9 +30,12 @@ $env:CLAUDE_HISTORY_ROOT = "C:\path\to\projects"
 $env:CLAUDE_HISTORY_EDITOR_DATA = "C:\path\to\editor-data"
 ```
 
-The server binds only to `127.0.0.1`. Every successful edit or deletion validates the complete
-JSONL file, creates a gzip backup, and refuses to save if Claude changed the file after it was
-loaded.
+The server binds only to `127.0.0.1`. Every successful edit, deletion, or ID randomization
+validates the complete JSONL file, creates a gzip backup, and refuses to save if Claude changed
+the file after it was loaded.
+
+Randomizing a `message.id` updates every JSON record that shares the selected ID so one logical
+assistant response remains internally consistent.
 
 ## Verify
 

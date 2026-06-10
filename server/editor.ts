@@ -28,6 +28,16 @@ export type DeleteMessageRequest = {
   fingerprint: string;
 };
 
+const MESSAGE_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+export function generateMessageId(): string {
+  let id = "msg_01";
+  for (let index = 0; index < 22; index += 1) {
+    id += MESSAGE_ID_ALPHABET[crypto.randomInt(MESSAGE_ID_ALPHABET.length)];
+  }
+  return id;
+}
+
 export async function fileFingerprint(filePath: string): Promise<string> {
   const stat = await fsp.stat(filePath, { bigint: true });
   return `${stat.size.toString()}:${stat.mtimeNs.toString()}`;
@@ -90,6 +100,44 @@ export async function deleteMessageBranch(
       fingerprint: await fileFingerprint(filePath),
       backupPath,
       deletedRecords
+    };
+  } catch (error) {
+    await fsp.rm(tempPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function randomizeMessageId(
+  filePath: string,
+  backupRoot: string,
+  request: { oldMessageId: string; newMessageId: string; fingerprint: string }
+): Promise<{ newMessageId: string; fingerprint: string; updatedRecords: number }> {
+  if ((await fileFingerprint(filePath)) !== request.fingerprint) {
+    throw new EditConflictError();
+  }
+
+  const source = await fsp.readFile(filePath);
+  const { replacement, updatedRecords } = replaceMessageIdRecords(
+    source,
+    request.oldMessageId,
+    request.newMessageId
+  );
+  const stat = await fsp.stat(filePath);
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+
+  try {
+    await fsp.writeFile(tempPath, replacement, { flag: "wx", mode: stat.mode });
+    await validateJsonl(tempPath);
+    if ((await fileFingerprint(filePath)) !== request.fingerprint) {
+      throw new EditConflictError();
+    }
+    const backupPath = await createBackup(filePath, backupRoot);
+    await replaceValidatedFile(tempPath, filePath);
+    await pruneBackups(path.dirname(backupPath), 5);
+    return {
+      newMessageId: request.newMessageId,
+      fingerprint: await fileFingerprint(filePath),
+      updatedRecords
     };
   } catch (error) {
     await fsp.rm(tempPath, { force: true }).catch(() => undefined);
@@ -224,7 +272,10 @@ type PhysicalLine = {
   value?: Record<string, unknown>;
 };
 
-function parsePhysicalLines(source: Buffer): PhysicalLine[] {
+function parsePhysicalLines(
+  source: Buffer,
+  action = "delete from"
+): PhysicalLine[] {
   const lines: PhysicalLine[] = [];
   let start = 0;
 
@@ -243,7 +294,7 @@ function parsePhysicalLines(source: Buffer): PhysicalLine[] {
     if (rawLine.length > 0) {
       const parsed = parseJsonLine(rawLine.toString("utf8"));
       if (!parsed.value) {
-        throw new Error(`Cannot delete from a session containing invalid JSON: ${parsed.error}`);
+        throw new Error(`Cannot ${action} a session containing invalid JSON: ${parsed.error}`);
       }
       value = parsed.value;
     }
@@ -253,6 +304,39 @@ function parsePhysicalLines(source: Buffer): PhysicalLine[] {
   }
 
   return lines;
+}
+
+function replaceMessageIdRecords(
+  source: Buffer,
+  oldMessageId: string,
+  newMessageId: string
+): { replacement: Buffer; updatedRecords: number } {
+  const lines = parsePhysicalLines(source, "randomize a message id in");
+  let updatedRecords = 0;
+
+  for (const line of lines) {
+    const message = line.value?.message as Record<string, unknown> | undefined;
+    if (message?.id === newMessageId && newMessageId !== oldMessageId) {
+      throw new Error(`A message with id ${newMessageId} already exists in this session.`);
+    }
+  }
+
+  const parts: Buffer[] = [];
+  for (const line of lines) {
+    const message = line.value?.message as Record<string, unknown> | undefined;
+    if (line.value && message?.id === oldMessageId) {
+      message.id = newMessageId;
+      updatedRecords += 1;
+      parts.push(Buffer.from(JSON.stringify(line.value), "utf8"), line.newline);
+    } else {
+      parts.push(line.rawLine, line.newline);
+    }
+  }
+
+  if (updatedRecords === 0) {
+    throw new Error("The selected message id was not found.");
+  }
+  return { replacement: Buffer.concat(parts), updatedRecords };
 }
 
 function removeTargetBranch(

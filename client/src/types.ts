@@ -24,6 +24,7 @@ export type ConversationRecord = {
   type: string;
   uuid?: string;
   parentUuid?: string;
+  messageId?: string;
   role?: string;
   timestamp?: string;
   editable: TextBlock[];

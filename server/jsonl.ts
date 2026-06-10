@@ -108,6 +108,7 @@ export function toConversationRecord(
     type: typeof record.type === "string" ? record.type : "unknown",
     uuid: typeof record.uuid === "string" ? record.uuid : undefined,
     parentUuid: typeof record.parentUuid === "string" ? record.parentUuid : undefined,
+    messageId: typeof message?.id === "string" ? message.id : undefined,
     role: typeof message?.role === "string" ? message.role : undefined,
     timestamp: typeof record.timestamp === "string" ? record.timestamp : undefined,
     editable: extractEditableText(record),
