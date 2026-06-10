@@ -53,4 +53,18 @@ describe("history index", () => {
     });
     expect(await index.refreshAll()).toMatchObject({ indexed: 0, unchanged: 1 });
   });
+
+  it("searches conversations by full or partial session id", async () => {
+    await index.refreshAll();
+
+    expect(index.search("session-one")[0]).toMatchObject({
+      kind: "session",
+      sessionId: "session-one",
+      sessionPath: "C--workspace-example/session-one.jsonl"
+    });
+    expect(index.search("ONE")[0]).toMatchObject({
+      kind: "session",
+      sessionId: "session-one"
+    });
+  });
 });

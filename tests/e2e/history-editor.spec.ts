@@ -6,6 +6,17 @@ test("searches, edits, deletes branches, and blocks stale writes", async ({ page
   await page.goto("/");
 
   const search = page.getByLabel("Search all history");
+  await search.fill("600e-42c5");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  const idResult = page.getByRole("button", {
+    name: /f119e2d5-600e-42c5-a63f-7b8e05bdc59e/i
+  });
+  await expect(idResult).toContainText("Where is the lighthouse sentence?");
+  await idResult.click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "f119e2d5-600e-42c5-a63f-7b8e05bdc59e"
+  );
+
   await search.fill("unique lighthouse");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.getByRole("button", { name: /unique lighthouse/i }).click();

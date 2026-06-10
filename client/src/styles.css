@@ -120,6 +120,7 @@ button { cursor: pointer; }
 .role-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #73786e; }
 .role-dot.user { background: var(--user); }
 .role-dot.assistant { background: var(--assistant); }
+.role-dot.session { background: #c39cff; }
 .message-id {
   display: flex; gap: 8px; align-items: baseline; margin: -3px 0 12px; color: var(--muted);
   font-size: 10px; min-width: 0;

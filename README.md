@@ -1,6 +1,7 @@
 # Claude History Editor V2
 
-A localhost-only browser for searching, editing, deleting, and randomizing message IDs in Claude Code JSONL history.
+A localhost-only browser for searching messages or conversation IDs, editing, deleting, and
+randomizing message IDs in Claude Code JSONL history.
 
 Deleting a message uses Claude Code's parent-linked conversation graph. It removes the selected
 logical message and every dependent descendant. Assistant records that share one Anthropic message

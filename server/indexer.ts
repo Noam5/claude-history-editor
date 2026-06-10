@@ -228,18 +228,34 @@ export class HistoryIndex {
   }
 
   search(query: string, limit = 50): Array<Record<string, unknown>> {
-    const matchQuery = toFtsQuery(query);
-    if (!matchQuery) return [];
-    return this.db
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) return [];
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
+    const sessionMatches = this.db
       .prepare(`
-        SELECT session_path AS sessionPath, uuid, content_path AS contentPath, line, project, role,
-               timestamp, text, snippet(messages_fts, 7, '<mark>', '</mark>', '...', 24) AS snippet
+        SELECT 'session' AS kind, session_path AS sessionPath, project, session_id AS sessionId,
+               preview, last_timestamp AS timestamp
+        FROM sessions
+        WHERE instr(lower(session_id), lower(?)) > 0
+        ORDER BY CASE WHEN lower(session_id) = lower(?) THEN 0 ELSE 1 END, mtime_ms DESC
+        LIMIT ?
+      `)
+      .all(trimmedQuery, trimmedQuery, safeLimit) as Array<Record<string, unknown>>;
+
+    const matchQuery = toFtsQuery(query);
+    if (!matchQuery || sessionMatches.length >= safeLimit) return sessionMatches;
+    const messageMatches = this.db
+      .prepare(`
+        SELECT 'message' AS kind, session_path AS sessionPath, uuid, content_path AS contentPath,
+               line, project, role, timestamp, text,
+               snippet(messages_fts, 7, '<mark>', '</mark>', '...', 24) AS snippet
         FROM messages_fts
         WHERE messages_fts MATCH ?
         ORDER BY rank
         LIMIT ?
       `)
-      .all(matchQuery, Math.min(Math.max(limit, 1), 200)) as Array<Record<string, unknown>>;
+      .all(matchQuery, safeLimit - sessionMatches.length) as Array<Record<string, unknown>>;
+    return [...sessionMatches, ...messageMatches];
   }
 
   private removeSession(relativePath: string): void {

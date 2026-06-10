@@ -259,7 +259,7 @@ function App() {
         <form className="search-form" onSubmit={search}>
           <input
             aria-label="Search all history"
-            placeholder="Search all history..."
+            placeholder="Search messages or conversation ID..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -279,19 +279,27 @@ function App() {
             {results.map((result) => (
               <button
                 className="result-item"
-                key={`${result.sessionPath}:${result.uuid}:${result.contentPath}`}
+                key={`${result.kind}:${result.sessionPath}:${result.uuid ?? ""}:${result.contentPath ?? ""}`}
                 onClick={() =>
                   chooseSession(
                     result.sessionPath,
-                    Math.floor((result.line - 1) / PAGE_SIZE) * PAGE_SIZE,
+                    result.line ? Math.floor((result.line - 1) / PAGE_SIZE) * PAGE_SIZE : 0,
                     result.uuid
                   )
                 }
               >
-                <span className={`role-dot ${result.role}`} />
+                <span className={`role-dot ${result.role ?? result.kind}`} />
                 <span>
-                  <strong>{displayProject(result.project)}</strong>
-                  <small>{result.snippet.replace(/<\/?mark>/g, "")}</small>
+                  <strong>
+                    {result.kind === "session"
+                      ? result.sessionId
+                      : displayProject(result.project)}
+                  </strong>
+                  <small>
+                    {result.kind === "session"
+                      ? result.preview || displayProject(result.project)
+                      : result.snippet?.replace(/<\/?mark>/g, "")}
+                  </small>
                 </span>
               </button>
             ))}

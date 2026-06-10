@@ -41,13 +41,16 @@ export type SessionPage = {
 };
 
 export type SearchResult = {
+  kind: "message" | "session";
   sessionPath: string;
-  uuid: string;
-  contentPath: string;
-  line: number;
   project: string;
-  role: string;
-  timestamp: string;
-  text: string;
-  snippet: string;
+  sessionId?: string;
+  preview?: string;
+  uuid?: string;
+  contentPath?: string;
+  line?: number;
+  role?: string;
+  timestamp?: string;
+  text?: string;
+  snippet?: string;
 };
